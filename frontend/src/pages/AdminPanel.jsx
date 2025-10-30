@@ -3,8 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import NodeStatus from '../components/NodeStatus';
+import TransactionCard from '../components/TransactionCard';
 import systemService from '../services/systemService';
+import transactionService from '../services/transactionService';
 import authService from '../services/authService';
+import { formatCurrency } from '../utils/helpers';
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -13,6 +16,10 @@ const AdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [replicationStatus, setReplicationStatus] = useState(null);
+  const [allTransactions, setAllTransactions] = useState([]);
+  const [transactionStats, setTransactionStats] = useState(null);
+  const [showTransactions, setShowTransactions] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
 
   useEffect(() => {
     if (!authService.isAdmin()) {
@@ -95,6 +102,34 @@ const AdminPanel = () => {
     }
   };
 
+  const fetchAllTransactions = async () => {
+    try {
+      const result = await transactionService.getAllTransactions();
+      setAllTransactions(result.transactions || []);
+      setShowTransactions(true);
+    } catch (err) {
+      setMessage(`❌ Failed to fetch transactions: ${err.message}`);
+    }
+  };
+
+  const fetchTransactionStats = async () => {
+    try {
+      const result = await transactionService.getStats();
+      setTransactionStats(result.stats);
+    } catch (err) {
+      console.error('Error fetching transaction stats:', err);
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const result = await authService.getAllUsers();
+      setAllUsers(result.users || []);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -147,7 +182,7 @@ const AdminPanel = () => {
         {/* Control Panel */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-2xl font-bold mb-4">System Controls</h2>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-4 mb-4">
             <button onClick={handleElectLeader} className="bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg">
               🗳️ Trigger Leader Election
             </button>
@@ -159,6 +194,18 @@ const AdminPanel = () => {
             </button>
             <button onClick={fetchReplicationStatus} className="bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg">
               📋 Check Replication Status
+            </button>
+          </div>
+          <h3 className="text-xl font-bold mb-3 mt-6">Data Management</h3>
+          <div className="grid md:grid-cols-3 gap-4">
+            <button onClick={fetchAllTransactions} className="bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg">
+              💳 View All Transactions
+            </button>
+            <button onClick={fetchTransactionStats} className="bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-lg">
+              📊 Transaction Statistics
+            </button>
+            <button onClick={fetchAllUsers} className="bg-pink-600 hover:bg-pink-700 text-white py-3 rounded-lg">
+              👥 View All Users
             </button>
           </div>
         </div>
@@ -209,6 +256,110 @@ const AdminPanel = () => {
                         ) : (
                           <span className="text-red-600">⚠ Out of Sync (lag: {node.lag})</span>
                         )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Transaction Statistics */}
+        {transactionStats && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-2xl font-bold mb-4">Transaction Statistics</h2>
+            <div className="grid md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="text-3xl mb-2">📊</div>
+                <div className="text-2xl font-bold">{transactionStats.total}</div>
+                <div className="text-gray-600">Total Transactions</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="text-3xl mb-2">💵</div>
+                <div className="text-2xl font-bold">{transactionStats.byType?.deposit || 0}</div>
+                <div className="text-gray-600">Deposits</div>
+              </div>
+              <div className="bg-red-50 rounded-lg p-4">
+                <div className="text-3xl mb-2">💸</div>
+                <div className="text-2xl font-bold">{transactionStats.byType?.withdraw || 0}</div>
+                <div className="text-gray-600">Withdrawals</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4">
+                <div className="text-3xl mb-2">🔄</div>
+                <div className="text-2xl font-bold">{transactionStats.byType?.transfer || 0}</div>
+                <div className="text-gray-600">Transfers</div>
+              </div>
+            </div>
+            <div className="mt-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4">
+              <div className="text-sm text-gray-600">Total Transaction Volume</div>
+              <div className="text-3xl font-bold text-green-600">{formatCurrency(transactionStats.totalVolume || 0)}</div>
+            </div>
+          </div>
+        )}
+
+        {/* All Transactions */}
+        {showTransactions && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">All Transactions ({allTransactions.length})</h2>
+              <button 
+                onClick={() => setShowTransactions(false)} 
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕ Close
+              </button>
+            </div>
+            {allTransactions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No transactions yet
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {allTransactions.map((transaction) => (
+                  <TransactionCard key={transaction._id} transaction={transaction} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* All Users */}
+        {allUsers.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">All Users ({allUsers.length})</h2>
+              <button 
+                onClick={() => setAllUsers([])} 
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕ Close
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="px-4 py-2 text-left">Email</th>
+                    <th className="px-4 py-2 text-left">Account Number</th>
+                    <th className="px-4 py-2 text-left">Balance</th>
+                    <th className="px-4 py-2 text-left">Role</th>
+                    <th className="px-4 py-2 text-left">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allUsers.map((user) => (
+                    <tr key={user._id} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-2">{user.email}</td>
+                      <td className="px-4 py-2 font-mono text-sm">{user.accountNumber}</td>
+                      <td className="px-4 py-2 font-semibold">{formatCurrency(user.balance)}</td>
+                      <td className="px-4 py-2">
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${user.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-600">
+                        {new Date(user.createdAt).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}

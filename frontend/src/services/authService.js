@@ -5,10 +5,7 @@ const authService = {
   // Register new user
   register: async (email, password) => {
     const response = await api.post('/auth/register', { email, password });
-    if (response.token) {
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-    }
+    // Don't auto-login after registration - redirect to login page instead
     return response;
   },
 

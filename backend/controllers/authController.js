@@ -3,8 +3,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const UserModel = require('../models/User');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'transacthub-secret-key-2024';
-
 // Register new user
 exports.register = async (req, res) => {
   try {
@@ -34,15 +32,15 @@ exports.register = async (req, res) => {
     const user = await UserModel.create({
       email,
       password: hashedPassword,
-      balance: 1000, // Starting balance
+      balance: 0, // Starting balance
       role: 'user'
     });
 
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '24h' }
+      process.env.JWT_SECRET || 'transacthub-secret-key-2024',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
 
     res.status(201).json({
@@ -102,8 +100,8 @@ exports.login = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '24h' }
+      process.env.JWT_SECRET || 'transacthub-secret-key-2024',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
 
     res.json({
@@ -165,18 +163,12 @@ exports.getCurrentUser = async (req, res) => {
 // Get all users (admin only)
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await UserModel.findAll();
+    const users = await UserModel.find().select('-password');
     
     res.json({
       success: true,
       count: users.length,
-      users: users.map(u => ({
-        _id: u._id,
-        email: u.email,
-        accountNumber: u.accountNumber,
-        balance: u.balance,
-        role: u.role
-      }))
+      users: users
     });
 
   } catch (error) {
@@ -184,6 +176,84 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Failed to get users',
+      error: error.message 
+    });
+  }
+};
+
+// Register admin user (only if ALLOW_ADMIN_REGISTRATION is true)
+exports.registerAdmin = async (req, res) => {
+  try {
+    // Check if admin registration is allowed
+    if (process.env.ALLOW_ADMIN_REGISTRATION !== 'true') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Admin registration is disabled. Use the createAdmin script instead.' 
+      });
+    }
+
+    const { email, password } = req.body;
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email and password required' 
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 6 characters' 
+      });
+    }
+
+    // Check if user exists
+    const existingUser = await UserModel.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User already exists' 
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create admin user
+    const admin = await UserModel.create({
+      email,
+      password: hashedPassword,
+      balance: 0,
+      role: 'admin'
+    });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: admin._id, email: admin.email, role: admin.role },
+      process.env.JWT_SECRET || 'transacthub-secret-key-2024',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Admin registered successfully',
+      token,
+      user: {
+        _id: admin._id,
+        email: admin.email,
+        accountNumber: admin.accountNumber,
+        balance: admin.balance,
+        role: admin.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Register admin error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Admin registration failed',
       error: error.message 
     });
   }

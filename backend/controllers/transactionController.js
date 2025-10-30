@@ -52,7 +52,8 @@ exports.deposit = async (req, res) => {
     selectedNode.processTransaction(transaction.toJSON());
 
     // Update user balance
-    await UserModel.updateBalance(userId, user.balance + amount);
+    user.balance += amount;
+    await user.save();
 
     // Replicate to backup nodes
     const replicationManager = getReplicationManager();
@@ -60,14 +61,16 @@ exports.deposit = async (req, res) => {
 
     // Update transaction replication status
     if (replicationResult.success) {
-      await TransactionModel.updateReplication(transaction._id, replicationResult.replicatedTo);
+      transaction.isReplicated = true;
+      transaction.replicatedTo = replicationResult.replicatedTo;
+      await transaction.save();
     }
 
     res.json({
       success: true,
       message: 'Deposit successful',
       transaction: transaction.toJSON(),
-      newBalance: user.balance + amount,
+      newBalance: user.balance,
       processedBy: selectedNode.id,
       lamportTimestamp: lamportTime,
       replication: replicationResult
@@ -138,7 +141,8 @@ exports.withdraw = async (req, res) => {
     selectedNode.processTransaction(transaction.toJSON());
 
     // Update user balance
-    await UserModel.updateBalance(userId, user.balance - amount);
+    user.balance -= amount;
+    await user.save();
 
     // Replicate to backup nodes
     const replicationManager = getReplicationManager();
@@ -146,14 +150,16 @@ exports.withdraw = async (req, res) => {
 
     // Update transaction replication status
     if (replicationResult.success) {
-      await TransactionModel.updateReplication(transaction._id, replicationResult.replicatedTo);
+      transaction.isReplicated = true;
+      transaction.replicatedTo = replicationResult.replicatedTo;
+      await transaction.save();
     }
 
     res.json({
       success: true,
       message: 'Withdrawal successful',
       transaction: transaction.toJSON(),
-      newBalance: user.balance - amount,
+      newBalance: user.balance,
       processedBy: selectedNode.id,
       lamportTimestamp: lamportTime,
       replication: replicationResult
@@ -234,8 +240,10 @@ exports.transfer = async (req, res) => {
     selectedNode.processTransaction(transaction.toJSON());
 
     // Update balances
-    await UserModel.updateBalance(userId, sender.balance - amount);
-    await UserModel.updateBalance(recipient._id, recipient.balance + amount);
+    sender.balance -= amount;
+    recipient.balance += amount;
+    await sender.save();
+    await recipient.save();
 
     // Replicate to backup nodes
     const replicationManager = getReplicationManager();
@@ -243,14 +251,16 @@ exports.transfer = async (req, res) => {
 
     // Update transaction replication status
     if (replicationResult.success) {
-      await TransactionModel.updateReplication(transaction._id, replicationResult.replicatedTo);
+      transaction.isReplicated = true;
+      transaction.replicatedTo = replicationResult.replicatedTo;
+      await transaction.save();
     }
 
     res.json({
       success: true,
       message: 'Transfer successful',
       transaction: transaction.toJSON(),
-      newBalance: sender.balance - amount,
+      newBalance: sender.balance,
       processedBy: selectedNode.id,
       lamportTimestamp: lamportTime,
       replication: replicationResult
@@ -299,12 +309,12 @@ exports.getBalance = async (req, res) => {
 exports.getTransactions = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const transactions = await TransactionModel.findByUser(userId);
+    const transactions = await TransactionModel.find({ userId }).sort({ createdAt: -1 });
 
     res.json({
       success: true,
       count: transactions.length,
-      transactions: transactions.map(t => t.toJSON())
+      transactions: transactions
     });
 
   } catch (error) {
@@ -320,12 +330,12 @@ exports.getTransactions = async (req, res) => {
 // Get all transactions (admin only)
 exports.getAllTransactions = async (req, res) => {
   try {
-    const transactions = await TransactionModel.findAll();
+    const transactions = await TransactionModel.find().sort({ createdAt: -1 });
 
     res.json({
       success: true,
       count: transactions.length,
-      transactions: transactions.map(t => t.toJSON())
+      transactions: transactions
     });
 
   } catch (error) {
@@ -341,7 +351,25 @@ exports.getAllTransactions = async (req, res) => {
 // Get transaction statistics (admin only)
 exports.getTransactionStats = async (req, res) => {
   try {
-    const stats = await TransactionModel.getStats();
+    const total = await TransactionModel.countDocuments();
+    const deposits = await TransactionModel.countDocuments({ type: 'deposit' });
+    const withdrawals = await TransactionModel.countDocuments({ type: 'withdraw' });
+    const transfers = await TransactionModel.countDocuments({ type: 'transfer' });
+    
+    const volumeResult = await TransactionModel.aggregate([
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const totalVolume = volumeResult.length > 0 ? volumeResult[0].total : 0;
+
+    const stats = {
+      total,
+      byType: {
+        deposit: deposits,
+        withdraw: withdrawals,
+        transfer: transfers
+      },
+      totalVolume
+    };
 
     res.json({
       success: true,

@@ -7,6 +7,7 @@ const { authenticateToken, isAdmin } = require('../middleware/auth');
 // Public routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/register-admin', authController.registerAdmin);
 
 // Protected routes
 router.get('/me', authenticateToken, authController.getCurrentUser);
