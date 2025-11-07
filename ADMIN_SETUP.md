@@ -2,10 +2,6 @@
 
 This guide explains how to create an admin account for the TransactHub system.
 
-## 🔐 Security Note
-
-**All demo accounts have been removed.** You must create accounts manually for security.
-
 ## 📋 Methods to Create Admin Account
 
 ### Method 1: Using the Admin Setup Script (Recommended)

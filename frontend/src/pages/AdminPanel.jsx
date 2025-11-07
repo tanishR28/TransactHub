@@ -46,7 +46,7 @@ const AdminPanel = () => {
   const handleElectLeader = async () => {
     try {
       const result = await systemService.electLeader();
-      setMessage(`✅ ${result.result.algorithm} Algorithm: Node ${result.leader} elected as leader`);
+      setMessage(`✅ ${result.result.algorithm} Algorithm: Node ${result.result.newLeaderId} elected as leader`);
       fetchData();
     } catch (err) {
       setMessage(`❌ Election failed: ${err.message}`);
@@ -224,43 +224,92 @@ const AdminPanel = () => {
 
         {/* Nodes Grid */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">Virtual Nodes Status</h2>
+          <h2 className="text-2xl font-bold mb-4">🖥️ Server Status</h2>
           <NodeStatus nodes={nodes} onNodeClick={handleNodeToggle} />
         </div>
 
         {/* Replication Status */}
         {replicationStatus && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 className="text-2xl font-bold mb-4">Replication Status</h2>
+            <h2 className="text-2xl font-bold mb-4">🔄 Database Replication Status</h2>
+            <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Replication Mode</p>
+                  <p className="text-lg font-semibold">MongoDB Shared Database</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Active Servers</p>
+                  <p className="text-lg font-semibold">{replicationStatus.totalNodes || 0} / 5</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Primary Server</p>
+                  <p className="text-lg font-semibold">Node {replicationStatus.primaryNode || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="px-4 py-2 text-left">Node ID</th>
-                    <th className="px-4 py-2 text-left">Type</th>
+                    <th className="px-4 py-2 text-left">Server ID</th>
+                    <th className="px-4 py-2 text-left">Role</th>
                     <th className="px-4 py-2 text-left">Status</th>
-                    <th className="px-4 py-2 text-left">Ledger Size</th>
-                    <th className="px-4 py-2 text-left">Sync Status</th>
+                    <th className="px-4 py-2 text-left">Data Sync</th>
+                    <th className="px-4 py-2 text-left">Replication</th>
                   </tr>
                 </thead>
                 <tbody>
                   {replicationStatus.nodes?.map(node => (
-                    <tr key={node.nodeId} className="border-t">
-                      <td className="px-4 py-2">Node {node.nodeId}</td>
-                      <td className="px-4 py-2">{node.isPrimary ? '👑 Primary' : 'Backup'}</td>
-                      <td className="px-4 py-2">{node.alive ? '✅ Active' : '❌ Down'}</td>
-                      <td className="px-4 py-2">{node.ledgerSize}</td>
+                    <tr key={node.nodeId} className={`border-t ${node.status === 'offline' ? 'bg-gray-50' : ''}`}>
+                      <td className="px-4 py-2 font-semibold">Server {node.nodeId}</td>
                       <td className="px-4 py-2">
-                        {node.inSync ? (
-                          <span className="text-green-600">✓ In Sync</span>
+                        {node.isPrimary ? (
+                          <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-semibold">👑 PRIMARY</span>
                         ) : (
-                          <span className="text-red-600">⚠ Out of Sync (lag: {node.lag})</span>
+                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-semibold">REPLICA</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        {node.status === 'active' ? (
+                          <span className="text-green-600 font-semibold">🟢 Online</span>
+                        ) : (
+                          <span className="text-gray-500 font-semibold">⚫ Offline</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        {node.status === 'active' ? (
+                          <span className="text-green-600">✓ Synced via MongoDB</span>
+                        ) : (
+                          <span className="text-gray-500">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        {node.status === 'active' ? (
+                          <span className="text-blue-600 font-medium">{node.syncStatus}</span>
+                        ) : (
+                          <span className="text-gray-500">Unavailable</span>
                         )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="mt-4 space-y-2">
+              <div className="p-3 bg-green-50 rounded-lg text-sm text-gray-700">
+                <strong>✅ Application-Level Replication:</strong> All active servers connect to the same MongoDB database. 
+                When you write to any server, all other servers can immediately read the updated data through the shared database.
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg text-sm text-gray-700">
+                <strong>🔄 MongoDB Atlas Replication:</strong> Your MongoDB Atlas cluster uses a 3-node replica set 
+                (1 Primary + 2 Secondaries) with automatic failover. Database writes are replicated to majority of nodes 
+                for data safety. Read operations are distributed across secondary nodes for better performance.
+              </div>
+              <div className="p-3 bg-purple-50 rounded-lg text-sm text-gray-700">
+                <strong>💡 Benefits:</strong> Double redundancy - if a server fails, others continue working. 
+                If MongoDB primary fails, a secondary is automatically promoted. This provides 99.995% uptime!
+              </div>
             </div>
           </div>
         )}
@@ -371,32 +420,53 @@ const AdminPanel = () => {
 
         {/* Technical Info */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-bold mb-4">Distributed Features Active</h2>
+          <h2 className="text-2xl font-bold mb-4">🌐 Distributed System Architecture</h2>
+          <div className="mb-4 p-4 bg-white/10 rounded-lg">
+            <p className="text-sm mb-2">
+              <strong>Architecture:</strong> Multi-Server Distributed Banking System
+            </p>
+            <p className="text-sm">
+              <strong>Running Servers:</strong> {stats.aliveNodes || 0} out of 5 servers active
+            </p>
+          </div>
           <div className="grid md:grid-cols-2 gap-4">
             <div className="flex items-center space-x-2">
-              <span>✓</span>
-              <span>Leader Election (Bully Algorithm)</span>
+              <span>🌐</span>
+              <span>API Gateway Load Balancer</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span>✓</span>
-              <span>Primary-Backup Replication</span>
+              <span>🔄</span>
+              <span>Round-Robin Request Distribution</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span>✓</span>
-              <span>Load Balancing (Multiple Strategies)</span>
+              <span>👑</span>
+              <span>Dynamic Leader Election</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span>✓</span>
-              <span>Lamport Logical Clocks</span>
+              <span>🗄️</span>
+              <span>MongoDB Shared Database</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span>✓</span>
-              <span>Fault Tolerance Simulation</span>
+              <span>⚡</span>
+              <span>Real-time Data Replication</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span>✓</span>
-              <span>Berkeley Clock Synchronization</span>
+              <span>🛡️</span>
+              <span>Automatic Failover & Recovery</span>
             </div>
+            <div className="flex items-center space-x-2">
+              <span>📊</span>
+              <span>Health Monitoring (5s intervals)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span>🔐</span>
+              <span>JWT Authentication</span>
+            </div>
+          </div>
+          <div className="mt-4 p-3 bg-white/10 rounded text-sm">
+            <strong>ℹ️ How it works:</strong> Each server runs independently on its own port (4001-4005). 
+            The API Gateway (port 4000) distributes incoming requests across all active servers. 
+            All servers share the same MongoDB database for real-time data synchronization.
           </div>
         </div>
       </div>

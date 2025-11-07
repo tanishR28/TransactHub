@@ -1,4 +1,4 @@
-// Node Status Component - Visualizes distributed nodes
+// Node Status Component - Visualizes distributed servers
 import React from 'react';
 import { getNodeStatusColor } from '../utils/helpers';
 
@@ -6,7 +6,7 @@ const NodeStatus = ({ nodes, onNodeClick }) => {
   if (!nodes || nodes.length === 0) {
     return (
       <div className="text-center text-gray-500 py-8">
-        Loading node information...
+        Loading server information...
       </div>
     );
   }
@@ -24,7 +24,7 @@ const NodeStatus = ({ nodes, onNodeClick }) => {
               <span className="text-2xl">
                 {node.isPrimary ? '👑' : node.alive ? '🟢' : '🔴'}
               </span>
-              <span className="font-bold text-lg">Node {node.id}</span>
+              <span className="font-bold text-lg">Server {node.id}</span>
             </div>
             <div className={`px-2 py-1 rounded text-xs font-semibold ${
               node.alive ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'

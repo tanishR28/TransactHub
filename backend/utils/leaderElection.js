@@ -7,9 +7,11 @@ class LeaderElection {
   constructor() {
     this.electionInProgress = false;
     this.electionHistory = [];
+    this.rotationIndex = -1; // Start at -1 so first increment gives 0
+    this.lastLeaderId = null; // Track last leader
   }
 
-  // Bully Algorithm: Node with highest ID among alive nodes becomes leader
+  // Ring-based Rotation Algorithm: Rotates leadership among alive nodes
   electLeader() {
     if (this.electionInProgress) {
       return { success: false, message: 'Election already in progress' };
@@ -18,10 +20,10 @@ class LeaderElection {
     this.electionInProgress = true;
     const simulator = getSimulator();
     
-    console.log('🗳️  Starting leader election (Bully Algorithm)...');
+    console.log('🗳️  Starting leader election (Ring Rotation Algorithm)...');
 
-    // Get all alive nodes
-    const aliveNodes = simulator.getAliveNodes();
+    // Get all alive nodes sorted by ID
+    const aliveNodes = simulator.getAliveNodes().sort((a, b) => a.id - b.id);
     
     if (aliveNodes.length === 0) {
       this.electionInProgress = false;
@@ -31,10 +33,35 @@ class LeaderElection {
       };
     }
 
-    // Select node with highest ID (Bully algorithm)
-    const newLeader = aliveNodes.reduce((max, node) => 
-      node.id > max.id ? node : max
-    );
+    // Find current leader's index in alive nodes
+    let currentLeaderIndex = -1;
+    if (this.lastLeaderId) {
+      currentLeaderIndex = aliveNodes.findIndex(n => n.id === this.lastLeaderId);
+      console.log(`📍 Last leader was Node ${this.lastLeaderId} at index ${currentLeaderIndex}`);
+    } else {
+      console.log(`📍 First election, no previous leader`);
+    }
+
+    // Select next node in rotation (round-robin)
+    const nextIndex = (currentLeaderIndex + 1) % aliveNodes.length;
+    const newLeader = aliveNodes[nextIndex];
+    
+    console.log(`🔄 Rotating: currentIndex=${currentLeaderIndex}, nextIndex=${nextIndex}, aliveNodes=[${aliveNodes.map(n => n.id).join(', ')}]`);
+    console.log(`👉 Selected Node ${newLeader.id} as new leader`);
+    
+    // Update tracking
+    this.lastLeaderId = newLeader.id;
+    this.rotationIndex = nextIndex;
+
+    // Validate newLeader exists and has id
+    if (!newLeader || !newLeader.id) {
+      this.electionInProgress = false;
+      console.error('❌ Error: Invalid leader node selected', newLeader);
+      return { 
+        success: false, 
+        message: 'Invalid leader node selected' 
+      };
+    }
 
     // Set new primary
     simulator.setPrimary(newLeader.id);
@@ -43,13 +70,14 @@ class LeaderElection {
       timestamp: new Date(),
       newLeaderId: newLeader.id,
       aliveNodes: aliveNodes.map(n => n.id),
-      algorithm: 'Bully'
+      algorithm: 'Ring Rotation',
+      rotationIndex: this.rotationIndex
     };
 
     this.electionHistory.push(electionResult);
     this.electionInProgress = false;
 
-    console.log(`👑 Node ${newLeader.id} elected as new leader`);
+    console.log(`👑 Node ${newLeader.id} elected as new leader (Ring Rotation)`);
 
     return {
       success: true,

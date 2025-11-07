@@ -1,52 +1,60 @@
-# 🏦 TransactHub - Distributed Banking System# 🏦 TransactHub - Distributed Banking SystemTransactHub (MERN, JS-only)
+# 🏦 TransactHub - Distributed Banking System
 
+A production-grade **distributed banking system** implementing real-world distributed computing concepts with actual multi-server architecture, MongoDB replica sets, and automatic failover.
 
+## 🌟 Key Features
 
-A full-stack MERN application demonstrating distributed computing concepts including leader election, data replication, load balancing, and fault tolerance simulation.
+### 🏦 Core Banking
+- User authentication & authorization (JWT)
+- Deposits, withdrawals, and transfers
+- Real-time balance updates across all servers
+- Transaction history with distributed timestamps
+- Multi-user concurrent transaction handling
+- Currency support: Indian Rupees (INR)
 
+### 🌐 Distributed Architecture
+- **5 Independent Backend Servers** (ports 4001-4005)
+- **API Gateway Load Balancer** (port 4000)
+- **MongoDB Atlas Replica Set** (3-node cluster)
+- **Round-robin Load Distribution**
+- **Dynamic Leader Election** (Ring Rotation)
+- **Automatic Failover & Recovery**
+- **Real-time Health Monitoring** (5-second intervals)
 
+### 🔄 Database Replication
+- **MongoDB Atlas Replica Sets** with automatic failover
+- **Write Concern: Majority** - Data written to 2+ nodes
+- **Read Preference: Secondary Preferred** - Distributed reads
+- **Automatic Retry** on network failures
+- **99.995% Uptime SLA**
 
-## ✨ FeaturesA comprehensive **Distributed Banking System** implementing advanced distributed computing concepts including client-server communication, multithreading, clock synchronization, leader election, data replication, load balancing, fault tolerance, and distributed computation frameworks.A simulation-based distributed banking system demonstrating concurrency, leader election, logical clocks, replication, and load balancing. Backend is Node.js/Express; frontend is React (Vite). Java files you provided were used only for conceptual reference.
+### 👑 Admin Features
+- System monitoring dashboard
+- View all transactions across all users
+- Transaction statistics and analytics
+- User management
+- Server status monitoring
+- Replication status tracking
+- Leader election control
 
+## � Documentation
 
+- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Complete setup and testing instructions
+- **[DISTRIBUTED_SETUP.md](DISTRIBUTED_SETUP.md)** - Distributed system architecture guide
+- **[MONGODB_REPLICATION.md](MONGODB_REPLICATION.md)** - MongoDB replication details
+- **[ADMIN_SETUP.md](ADMIN_SETUP.md)** - Admin account creation guide
+- **[DISTRIBUTED_FEATURES.md](DISTRIBUTED_FEATURES.md)** - Feature explanations
 
-### Banking Operations
+## 🚀 Quick Start
 
-- ✅ User authentication (JWT)
+### Prerequisites
+- Node.js v16 or higher
+- MongoDB Atlas account
+- PowerShell (Windows)
 
-- ✅ Deposit/Withdraw/Transfer money## 🌟 FeaturesFeatures
-
-- ✅ Transaction history with Lamport timestamps
-
-- Lamport logical clocks per node
-
-### Distributed System Features
-
-- ✅ **Leader Election**: Bully algorithm### Core Banking Features- Primary-backup replication from current leader
-
-- ✅ **Clock Synchronization**: Lamport & Berkeley algorithms  
-
-- ✅ **Data Replication**: Primary-backup strategy- **User Authentication & Authorization** - Secure login/registration with JWT tokens- Leader election (Bully/Ring simplified → highest alive id)
-
-- ✅ **Load Balancing**: Round-robin, weighted, least-connections
-
-- ✅ **Fault Tolerance**: Node failure simulation- **Transaction Processing** - Deposits, withdrawals, and transfers- Load balancing (round robin, random, least-connections, weighted by response)
-
-
-
-## 🚀 Quick Start- **Real-time Balance Updates** - Instant balance synchronization across nodes- SSE real-time event stream (logs, replication, elections)
-
-
-
-### Backend- **Transaction History** - Complete audit trail of all operations- Clock sync demos (Cristian/Berkeley-style)
-
+### Option 1: Automated Start (All Services)
 ```bash
-
-cd backend- **Multi-user Support** - Concurrent transaction handling
-
-npm install
-
-npm run devStructure
+.\start-distributed.ps1
 
 ```
 
